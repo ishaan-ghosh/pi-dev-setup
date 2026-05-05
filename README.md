@@ -37,7 +37,7 @@ cd pi-dev-setup
 ./scripts/bootstrap.sh
 ```
 
-The bootstrap script will not overwrite an existing `~/.pi/agent/settings.json`; it backs it up and installs this package instead.
+The bootstrap script will not overwrite an existing `~/.pi/agent/settings.json`; it backs it up and installs this package instead. If a local `~/.pi/agent/extensions/read-policy.ts` exists, it moves it to `~/.pi/agent/extensions/.local-backup/` so the extension is not loaded twice.
 
 ## Optional settings sync
 
