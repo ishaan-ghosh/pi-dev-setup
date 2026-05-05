@@ -12,7 +12,25 @@
     "git:https://github.com/ishaan-ghosh/pi-dev-setup",
     "npm:pi-subagents",
     "npm:pi-mcp-adapter",
-    "npm:context-mode",
+    {
+      "source": "npm:context-mode",
+      "skills": [
+        "skills/context-mode",
+        "skills/context-mode/**",
+        "skills/context-mode-ops",
+        "skills/context-mode-ops/**",
+        "skills/ctx-doctor",
+        "skills/ctx-doctor/**",
+        "skills/ctx-insight",
+        "skills/ctx-insight/**",
+        "skills/ctx-purge",
+        "skills/ctx-purge/**",
+        "skills/ctx-stats",
+        "skills/ctx-stats/**",
+        "skills/ctx-upgrade",
+        "skills/ctx-upgrade/**"
+      ]
+    },
     "git:https://github.com/hasit/pi-community-themes",
     {
       "source": "git:https://github.com/mattpocock/skills.git",
@@ -26,9 +44,5 @@
     }
   ],
   "theme": "solarized-dark",
-  "transport": "auto",
-  "enabledModels": [
-    "openai-codex/gpt-5.5",
-    "openai-codex/gpt-5.3-codex-spark"
-  ]
+  "transport": "auto"
 }

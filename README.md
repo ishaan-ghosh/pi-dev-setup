@@ -60,9 +60,11 @@ Review `settings.example.json` first. It includes model preferences and packages
 
 - `npm:pi-subagents`
 - `npm:pi-mcp-adapter`
-- `npm:context-mode`
+- `npm:context-mode` with its skills filtered to context-mode-only skills, avoiding duplicate vendored engineering skills
 - `git:https://github.com/hasit/pi-community-themes`
 - optional additional skills from `git:https://github.com/mattpocock/skills.git` that are not vendored here
+
+`enabledModels` is intentionally not set in the template because scoped model patterns can warn before you authenticate with `/login`. Configure model cycling per machine with `/scoped-models` after login.
 
 ## Update
 
@@ -92,3 +94,17 @@ Do not commit:
 - literal API keys in `settings.json` or `models.json`
 
 Use `/login`, environment variables, or secret-manager commands instead.
+
+## Troubleshooting
+
+### Skill conflict warnings involving `context-mode`
+
+`context-mode` versions after `1.0.107` bundle several upstream skills, including `diagnose`, `grill-with-docs`, `improve-codebase-architecture`, and `tdd`. This package vendors those skills directly, so `settings.example.json` filters `context-mode` to only its own skills. If you created settings from an older version of this repo, update the `npm:context-mode` package entry to the object form used in `settings.example.json`.
+
+### `No models match pattern ...`
+
+This usually means scoped model cycling was configured before the provider was authenticated, or Pi's model registry is older than the model names in your settings. Run `/login`, then configure cycling with `/scoped-models`. If needed, update Pi:
+
+```bash
+npm install -g @mariozechner/pi-coding-agent@latest
+```
