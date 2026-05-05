@@ -12,7 +12,15 @@ This repository is a Pi package. It can bundle:
 Current contents:
 
 - `extensions/read-policy.ts` — nudges agents toward `grep`/`find`/`ls` first and paginated `read` calls by default.
+- Vendored skills:
+  - `grill-with-docs`
+  - `diagnose`
+  - `improve-codebase-architecture`
+  - `tdd`
+  - `to-prd`
 - `settings.example.json` — non-secret global settings template matching my current setup.
+
+The vendored skills come from [`mattpocock/skills`](https://github.com/mattpocock/skills); see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Install
 
@@ -54,7 +62,7 @@ Review `settings.example.json` first. It includes model preferences and packages
 - `npm:pi-mcp-adapter`
 - `npm:context-mode`
 - `git:https://github.com/hasit/pi-community-themes`
-- selected skills from `git:https://github.com/mattpocock/skills.git`
+- optional additional skills from `git:https://github.com/mattpocock/skills.git` that are not vendored here
 
 ## Update
 
