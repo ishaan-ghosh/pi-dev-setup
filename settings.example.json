@@ -1,0 +1,39 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "xhigh",
+  "compaction": {
+    "enabled": false
+  },
+  "quietStartup": true,
+  "enableInstallTelemetry": true,
+  "enableSkillCommands": true,
+  "packages": [
+    "git:https://github.com/ishaan-ghosh/pi-dev-setup",
+    "npm:pi-subagents",
+    "npm:pi-mcp-adapter",
+    "npm:context-mode",
+    "git:https://github.com/hasit/pi-community-themes",
+    {
+      "source": "git:https://github.com/mattpocock/skills.git",
+      "skills": [
+        "skills/productivity/grill-me",
+        "skills/engineering/grill-with-docs",
+        "skills/engineering/tdd",
+        "skills/engineering/diagnose",
+        "skills/engineering/zoom-out",
+        "skills/engineering/improve-codebase-architecture",
+        "skills/engineering/to-prd",
+        "skills/engineering/to-issues",
+        "skills/engineering/triage",
+        "skills/engineering/setup-matt-pocock-skills"
+      ]
+    }
+  ],
+  "theme": "solarized-dark",
+  "transport": "auto",
+  "enabledModels": [
+    "openai-codex/gpt-5.5",
+    "openai-codex/gpt-5.3-codex-spark"
+  ]
+}

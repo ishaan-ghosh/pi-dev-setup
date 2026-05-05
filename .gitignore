@@ -1,0 +1,16 @@
+# Pi secrets and generated state
+auth.json
+sessions/
+git/
+npm/
+
+# Dependencies/build/cache
+node_modules/
+dist/
+.cache/
+*.log
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
