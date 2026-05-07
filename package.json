@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Shared Pi coding-agent setup: extensions, skills, prompts, and themes.",
+  "scripts": {
+    "test": "node --test"
+  },
   "keywords": ["pi-package"],
   "type": "module",
   "peerDependencies": {

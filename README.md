@@ -12,6 +12,8 @@ This repository is a Pi package. It can bundle:
 Current contents:
 
 - `extensions/read-policy.ts` — nudges agents toward `grep`/`find`/`ls` first and paginated `read` calls by default.
+- `skills/audit-flow` — human-in-the-loop commit/PR/platform audit workflow with repo-local prompt profiles and local artifact receipts.
+- `prompts/audit.md` — slash-command prompt template for starting the audit flow.
 - Vendored skills:
   - `grill-with-docs`
   - `diagnose`
@@ -65,6 +67,12 @@ Review `settings.example.json` first. It includes model preferences and packages
 - optional additional skills from `git:https://github.com/mattpocock/skills.git` that are not vendored here
 
 `enabledModels` is intentionally not set in the template because scoped model patterns can warn before you authenticate with `/login`. Configure model cycling per machine with `/scoped-models` after login.
+
+## Test
+
+```bash
+npm test
+```
 
 ## Update
 

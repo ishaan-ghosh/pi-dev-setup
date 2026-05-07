@@ -3,6 +3,7 @@ auth.json
 sessions/
 git/
 npm/
+.pi/local/
 
 # Dependencies/build/cache
 node_modules/
