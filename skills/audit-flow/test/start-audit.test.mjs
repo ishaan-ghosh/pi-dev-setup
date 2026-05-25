@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { promisify } from "node:util";
 
-import { startAudit } from "../scripts/start-audit.mjs";
+import { parseYamlSubset, startAudit } from "../scripts/start-audit.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -260,4 +260,135 @@ test("checks artifact ignore safety in the selected platform member repo", async
 		env: {},
 	});
 	assert.equal(result.auditDir, path.join(backendRoot, ".pi/local/audits/platform-safe"));
+
+	await writeText(result.primaryInitialPath, "# Primary audit\n\nNo findings.\n");
+	const { recordAuditStage } = await import("../scripts/record-stage.mjs");
+	await recordAuditStage({
+		auditYmlPath: result.auditYmlPath,
+		stage: "primary",
+		artifactPath: result.primaryInitialPath,
+		now: new Date("2026-05-07T01:00:00.000Z"),
+	});
+
+	const auditYml = await readFile(result.auditYmlPath, "utf8");
+	assert.match(auditYml, /completed_at: "2026-05-07T01:00:00.000Z"/);
+	assert.match(auditYml, /role: "api"/);
+});
+
+test("records completed primary reviewer metadata without changing the artifact names", async () => {
+	const projectRoot = await mkdtemp(path.join(tmpdir(), "audit-flow-"));
+	await writeText(path.join(projectRoot, ".pi/audit/profiles/commit.yaml"), [
+		"name: commit",
+		"type: commit",
+		"fragments:",
+		"  - prompts/base.md",
+		"",
+	].join("\n"));
+	await writeText(path.join(projectRoot, ".pi/audit/prompts/base.md"), "# Base\n");
+
+	const result = await startAudit({
+		projectRoot,
+		profile: "commit",
+		auditId: "primary-record-audit",
+		now: new Date("2026-05-07T00:00:00.000Z"),
+		env: {},
+	});
+	await writeText(result.primaryInitialPath, "# Primary audit\n\nNo findings.\n");
+
+	const { recordAuditStage } = await import("../scripts/record-stage.mjs");
+	await recordAuditStage({
+		auditYmlPath: result.auditYmlPath,
+		stage: "primary",
+		artifactPath: path.relative(process.cwd(), result.primaryInitialPath),
+		tool: "pi-subagent",
+		model: "test-model",
+		sessionId: "run-123",
+		now: new Date("2026-05-07T01:00:00.000Z"),
+	});
+
+	const auditYml = await readFile(result.auditYmlPath, "utf8");
+	assert.match(auditYml, /status: "in_progress"/);
+	assert.match(auditYml, /updated_at: "2026-05-07T01:00:00.000Z"/);
+	assert.match(auditYml, /role: "primary-reviewer"/);
+	assert.match(auditYml, /tool: "pi-subagent"/);
+	assert.match(auditYml, /model: "test-model"/);
+	assert.match(auditYml, /session_id: "run-123"/);
+	assert.match(auditYml, /completed_at: "2026-05-07T01:00:00.000Z"/);
+	assert.match(auditYml, /artifact: "primary-initial.md"/);
+	assert.match(auditYml, /local_overrides: \[]/);
+});
+
+test("record-stage preserves escaped git status metadata", async () => {
+	const projectRoot = await mkdtemp(path.join(tmpdir(), "audit-flow-"));
+	await execFileAsync("git", ["init"], { cwd: projectRoot });
+	await writeText(path.join(projectRoot, ".gitignore"), ".pi/local/\n");
+	await writeText(path.join(projectRoot, "tracked.txt"), "before\n");
+	await execFileAsync("git", ["add", ".gitignore", "tracked.txt"], { cwd: projectRoot });
+	await execFileAsync("git", ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "initial"], {
+		cwd: projectRoot,
+	});
+	await writeText(path.join(projectRoot, "tracked.txt"), "after\n");
+	await writeText(path.join(projectRoot, ".pi/audit/profiles/commit.yaml"), [
+		"name: commit",
+		"type: commit",
+		"fragments:",
+		"  - prompts/base.md",
+		"",
+	].join("\n"));
+	await writeText(path.join(projectRoot, ".pi/audit/prompts/base.md"), "# Base\n");
+
+	const result = await startAudit({
+		projectRoot,
+		profile: "commit",
+		auditId: "escape-audit",
+		now: new Date("2026-05-07T00:00:00.000Z"),
+		env: {},
+	});
+	await writeText(result.primaryInitialPath, "# Primary audit\n");
+	const { recordAuditStage } = await import("../scripts/record-stage.mjs");
+	await recordAuditStage({
+		auditYmlPath: result.auditYmlPath,
+		stage: "primary",
+		artifactPath: result.primaryInitialPath,
+		now: new Date("2026-05-07T01:00:00.000Z"),
+	});
+
+	const auditYml = await readFile(result.auditYmlPath, "utf8");
+	assert.doesNotMatch(auditYml, /\\\\n/);
+	const parsed = parseYamlSubset(auditYml);
+	assert.match(parsed.target.git.status_short_branch, /\n/);
+	assert.doesNotMatch(parsed.target.git.status_short_branch, /\\n/);
+});
+
+test("record-stage preserves escaped quotes before hash characters", async () => {
+	const projectRoot = await mkdtemp(path.join(tmpdir(), "audit-flow-"));
+	await writeText(path.join(projectRoot, ".pi/audit/profiles/commit.yaml"), [
+		"name: commit",
+		"type: commit",
+		"fragments:",
+		"  - prompts/base.md",
+		"",
+	].join("\n"));
+	await writeText(path.join(projectRoot, ".pi/audit/prompts/base.md"), "# Base\n");
+	const target = 'quote " # not comment';
+
+	const result = await startAudit({
+		projectRoot,
+		profile: "commit",
+		target,
+		auditId: "quote-hash-audit",
+		now: new Date("2026-05-07T00:00:00.000Z"),
+		env: {},
+	});
+	await writeText(result.primaryInitialPath, "# Primary audit\n");
+	const { recordAuditStage } = await import("../scripts/record-stage.mjs");
+	await recordAuditStage({
+		auditYmlPath: result.auditYmlPath,
+		stage: "primary",
+		artifactPath: result.primaryInitialPath,
+		now: new Date("2026-05-07T01:00:00.000Z"),
+	});
+
+	const parsed = parseYamlSubset(await readFile(result.auditYmlPath, "utf8"));
+	assert.equal(parsed.target.raw, target);
 });

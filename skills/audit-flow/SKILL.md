@@ -101,7 +101,7 @@ Do not assume fully automated tmux control is available.
 
 Use Markdown for human review and JSON/YAML for later automation.
 
-## Minimal v1 start helper
+## Minimal v1 helpers
 
 Use `scripts/start-audit.mjs` to compose a tracked profile, create the local artifact directory, write `audit.yml`, and write `primary-reviewer-prompt.md` plus `peer-review-prompt.md`.
 
@@ -114,15 +114,33 @@ node <audit-flow-skill-dir>/scripts/start-audit.mjs staged
 node <audit-flow-skill-dir>/scripts/start-audit.mjs pr "PR #14"
 ```
 
-The helper prints JSON containing `auditDir`, `auditYmlPath`, `primaryPromptPath`, `primaryInitialPath`, `peerPromptPath`, and related artifact paths. Use `primaryPromptPath` for the primary reviewer. Save the primary reviewer output to `primaryInitialPath`, then use `peerPromptPath` for the semi-automated peer-review handoff. Common positional commands map to profiles: `diff`, `staged`, and `commit` use the `commit` profile; `pr` and `stack` use the `pr` profile.
+The helper prints JSON containing `auditDir`, `auditYmlPath`, `primaryPromptPath`, `primaryInitialPath`, `peerPromptPath`, and related artifact paths. Common positional commands map to profiles: `diff`, `staged`, and `commit` use the `commit` profile; `pr` and `stack` use the `pr` profile.
+
+Use `scripts/record-stage.mjs` after a reviewer artifact has been written to record completion metadata in `audit.yml`:
+
+```bash
+node <audit-flow-skill-dir>/scripts/record-stage.mjs --audit-yml <auditYmlPath> --stage primary --artifact <primaryInitialPath> --tool pi-subagent
+```
+
+## Primary reviewer automation
+
+When the subagent tool is available, do not stop after generating prompts. Launch the primary reviewer automatically:
+
+1. Run `start-audit.mjs` for the requested profile/target.
+2. Launch a fresh `reviewer` subagent using `primary-reviewer-prompt.md` as the task contract, with `cwd` set to the audited repo root, `output` set to `primaryInitialPath`, and `outputMode` set to `file-only` for large reports.
+3. The reviewer must not edit application code.
+4. After the reviewer finishes, run `record-stage.mjs --audit-yml <auditYmlPath> --stage primary --artifact <primaryInitialPath>`. Record `--tool pi-subagent`; record model/session IDs only if the parent has them.
+5. Tell the human where `primary-initial.md` and `peer-review-prompt.md` were written, and pause for the semi-automated peer-review step.
+
+If the subagent tool is unavailable, perform the primary review in the parent session, write the result to `primary-initial.md`, then run `record-stage.mjs --audit-yml <auditYmlPath> --stage primary --artifact <primaryInitialPath> --tool pi-parent`.
 
 ## Orchestration outline
 
 1. Read repo instructions: `AGENTS.md`, `CONTEXT.md`, `CONTRIBUTING.md`, and `docs/adr/*.md` when present.
 2. Identify audit type, target, base/head refs, and current git cleanliness constraints.
 3. Run the minimal v1 start helper for the selected profile and target.
-4. Launch isolated reviewer session(s) with `primary-reviewer-prompt.md` or perform the initial primary audit in the parent if the user requests simplicity.
-5. Save initial findings to `primary-initial.md` and structured candidates to `primary-findings.json` when practical.
+4. Launch the primary reviewer automatically and save its report to `primary-initial.md`.
+5. Run `record-stage.mjs --audit-yml <auditYmlPath> --stage primary --artifact <primaryInitialPath>` to update `audit.yml`.
 6. Pause for or ingest peer-review output into `peer-review.md`.
 7. Synthesize disagreements and candidate findings.
 8. Keep the parent session live for human drill-down.

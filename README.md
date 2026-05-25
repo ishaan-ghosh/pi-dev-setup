@@ -12,7 +12,7 @@ This repository is a Pi package. It can bundle:
 Current contents:
 
 - `extensions/read-policy.ts` — nudges agents toward `grep`/`find`/`ls` first and paginated `read` calls by default.
-- `skills/audit-flow` — human-in-the-loop commit/PR/platform audit workflow with repo-local prompt profiles and local artifact receipts.
+- `skills/audit-flow` — human-in-the-loop commit/PR/platform audit workflow with repo-local prompt profiles, automated primary reviewer handoff, and local artifact receipts.
 - `prompts/audit.md` — slash-command prompt template for starting the audit flow.
 - Vendored skills:
   - `grill-with-docs`

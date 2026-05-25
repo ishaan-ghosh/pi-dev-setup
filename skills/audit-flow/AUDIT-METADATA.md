@@ -40,6 +40,7 @@ reviewers:
     session_id: pi-session-id
     prompt: primary-reviewer-prompt.md
     artifact: primary-initial.md
+    completed_at: 2026-05-07T12:10:00Z
   peer:
     role: peer-reviewer
     tool: external-peer-agent
@@ -47,6 +48,7 @@ reviewers:
     session_id: optional-session-id
     prompt: peer-review-prompt.md
     artifact: peer-review.md
+    completed_at: null
 
 validation:
   - command: uv run pytest -q

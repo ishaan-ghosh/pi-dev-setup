@@ -387,19 +387,23 @@ export function parseYamlSubset(text) {
 
 		let parent = stack.at(-1);
 		if (parent.type === "pending") {
-			const container = content.startsWith("- ") ? [] : {};
+			const container = content === "-" || content.startsWith("- ") ? [] : {};
 			parent.owner[parent.key] = container;
 			parent.type = Array.isArray(container) ? "array" : "object";
 			parent.value = container;
 		}
 
 		parent = stack.at(-1);
-		if (content.startsWith("- ")) {
+		if (content === "-" || content.startsWith("- ")) {
 			if (parent.type !== "array") {
 				throw new Error(`Invalid YAML subset: list item without list parent: ${rawLine}`);
 			}
-			const itemText = content.slice(2).trim();
-			if (looksLikeKeyValue(itemText)) {
+			const itemText = content === "-" ? "" : content.slice(2).trim();
+			if (itemText === "") {
+				const item = {};
+				parent.value.push(item);
+				stack.push({ indent, type: "object", value: item });
+			} else if (looksLikeKeyValue(itemText)) {
 				const item = {};
 				parent.value.push(item);
 				const { key, rawValue } = splitKeyValue(itemText);
@@ -436,6 +440,10 @@ function stripInlineComment(line) {
 	let inDoubleQuote = false;
 	for (let i = 0; i < line.length; i += 1) {
 		const char = line[i];
+		if (inDoubleQuote && char === "\\") {
+			i += 1;
+			continue;
+		}
 		if (char === "'" && !inDoubleQuote) inSingleQuote = !inSingleQuote;
 		if (char === '"' && !inSingleQuote) inDoubleQuote = !inDoubleQuote;
 		if (char === "#" && !inSingleQuote && !inDoubleQuote && (i === 0 || /\s/.test(line[i - 1]))) {
@@ -469,16 +477,24 @@ function splitKeyValue(text) {
 function parseScalar(value) {
 	const trimmed = value.trim();
 	if (trimmed === "null" || trimmed === "~") return null;
+	if (trimmed === "[]") return [];
 	if (trimmed === "true") return true;
 	if (trimmed === "false") return false;
 	if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed);
-	if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+	if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+		try {
+			return JSON.parse(trimmed);
+		} catch {
+			return trimmed.slice(1, -1);
+		}
+	}
+	if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
 		return trimmed.slice(1, -1);
 	}
 	return trimmed;
 }
 
-function toYaml(value, indent = 0) {
+export function toYaml(value, indent = 0) {
 	const pad = " ".repeat(indent);
 	if (Array.isArray(value)) {
 		if (value.length === 0) return "[]\n";
