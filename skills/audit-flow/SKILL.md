@@ -60,8 +60,16 @@ PR audits should understand stacked branches. Use the PR base branch as the defa
 Both audit types use the same lifecycle:
 
 ```txt
-candidate finding → peer-reviewed finding → human accepted/rejected → fix, review comment, or defer
+candidate finding → independently verified finding → human accepted/rejected → fix, review comment, or defer
 ```
+
+## Two-agent finding verification gate
+
+Every finding must be verified by at least two independent reviewer agents before it enters synthesis, human review, final findings, a fix plan, or a GitHub review packet. Treat "verified" as direct re-inspection of the target and cited evidence, not just agreement with another reviewer’s prose.
+
+Primary+peer confirmation satisfies this gate. Any finding introduced by only one reviewer, missed by the other, or disputed requires an additional fresh read-only reviewer focused on that finding. Save this focused verification as `verification-<n>.md` (or a more specific verifier artifact) and record provenance in `audit.yml` when practical. If a finding cannot get two-agent verification, keep it out of confirmed synthesis; mark it as `unverified`, `rejected`, or a residual/open question instead.
+
+Before synthesis, the parent orchestrator must compare reviewer artifacts, list every candidate finding with the roles that verified it, launch verifier agents for one-agent findings, and only synthesize findings with at least two verifier roles.
 
 ## Validation command policy
 
@@ -92,6 +100,7 @@ Do not assume fully automated tmux control is available.
   primary-findings.json
   peer-review-prompt.md
   peer-review.md
+  verification-*.md
   synthesis.md
   final-human-reviewed.md
   findings.json
@@ -142,13 +151,14 @@ If the subagent tool is unavailable, perform the primary review in the parent se
 4. Launch the primary reviewer automatically and save its report to `primary-initial.md`.
 5. Run `record-stage.mjs --audit-yml <auditYmlPath> --stage primary --artifact <primaryInitialPath>` to update `audit.yml`.
 6. Pause for or ingest peer-review output into `peer-review.md`.
-7. Synthesize disagreements and candidate findings.
-8. Keep the parent session live for human drill-down.
-9. After human confirmation, write final accepted/rejected/deferred findings and a fix or PR-review plan.
-10. Only then run a fixing agent or generate GitHub review comments.
-11. After fixes, run targeted verification and re-audit the changed lines or accepted-finding area before committing/pushing.
-12. Mark every accepted finding as `fixed`, `partially_fixed`, `still_open`, or `verified` before closing the audit.
-13. Produce a compact `receipt.md` suitable for PR notes without exposing raw local transcripts.
+7. Apply the two-agent finding verification gate: compare reviewer artifacts, identify findings with fewer than two verifying reviewer roles, launch fresh focused verifier agents as needed, save `verification-*.md` artifacts, and exclude unverified findings from confirmed synthesis.
+8. Synthesize disagreements and candidate findings that passed the two-agent gate.
+9. Keep the parent session live for human drill-down.
+10. After human confirmation, write final accepted/rejected/deferred findings and a fix or PR-review plan.
+11. Only then run a fixing agent or generate GitHub review comments.
+12. After fixes, run targeted verification and re-audit the changed lines or accepted-finding area before committing/pushing.
+13. Mark every accepted finding as `fixed`, `partially_fixed`, `still_open`, or `verified` before closing the audit.
+14. Produce a compact `receipt.md` suitable for PR notes without exposing raw local transcripts.
 
 ## Audit receipt
 
@@ -166,4 +176,4 @@ In v1, Pi prepares a GitHub review packet instead of directly posting externally
 
 ## Output standards
 
-Findings first, ordered by severity. Confirmed findings need exact file/line references, impact, and evidence. Separate confirmed findings, open questions/assumptions, optional suggestions, and residual validation gaps.
+Findings first, ordered by severity. Confirmed findings need exact file/line references, impact, evidence, and the reviewer roles/artifacts that verified them. Separate confirmed findings, open questions/assumptions, optional suggestions, and residual validation gaps. Do not present a one-agent finding as confirmed during synthesis or human review.

@@ -31,7 +31,7 @@ Findings should have stable IDs and structured status fields from the beginning.
 - `title`: Short human-readable finding title.
 - `severity`: `critical | high | medium | low`.
 - `confidence`: `confirmed | likely | speculative | question`.
-- `source`: One or more provenance labels such as `primary-reviewer`, `peer-reviewer`, `human-drilldown`. Specific model/tool names may be recorded separately in audit metadata.
+- `source`: Provenance labels such as `primary-reviewer`, `peer-reviewer`, `finding-verifier`, or `human-drilldown`. Findings promoted into synthesis/human review must have at least two independent reviewer-agent sources that directly verified the target evidence. One-source findings remain `candidate`, `unverified`, `question`, or `rejected`.
 - `status`: `candidate | accepted | rejected | deferred | needs_more_info | fixed | partially_fixed | still_open | verified | commented`.
 - `impact`: User/product/runtime impact.
 - `evidence`: Concrete evidence, preferably with file/line references or command results.
@@ -46,6 +46,7 @@ Findings should have stable IDs and structured status fields from the beginning.
 - `github_comment`: Proposed GitHub review comment information after human acceptance.
 - `decision_reason`: Human reason for accepting, rejecting, or deferring.
 - `validation`: Commands/results relevant to this finding.
+- `verification`: Optional per-source verification notes, artifact paths, or reviewer roles used to satisfy the two-agent finding verification gate.
 
 ## Status lifecycle
 
@@ -59,4 +60,4 @@ candidate → deferred
 candidate → needs_more_info → accepted/rejected/deferred
 ```
 
-Reviewer sessions should generally create `candidate` findings. The parent audit cockpit updates status after human drill-down.
+Reviewer sessions should generally create `candidate` findings. The parent audit cockpit first applies the two-agent verification gate, then updates status after human drill-down.

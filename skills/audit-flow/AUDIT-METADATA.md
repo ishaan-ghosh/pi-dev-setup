@@ -49,6 +49,14 @@ reviewers:
     prompt: peer-review-prompt.md
     artifact: peer-review.md
     completed_at: null
+  verifier_peer_only:
+    role: finding-verifier
+    tool: pi-subagent
+    model: example-model
+    session_id: optional-session-id
+    artifact: verification-peer-only.md
+    scope: peer-only findings requiring second-agent verification
+    completed_at: null
 
 validation:
   - command: uv run pytest -q
@@ -61,6 +69,7 @@ artifacts:
   primary_initial: primary-initial.md
   peer_review_prompt: peer-review-prompt.md
   peer_review: peer-review.md
+  verification_peer_only: verification-peer-only.md
   findings: findings.json
   receipt: receipt.md
 ```
