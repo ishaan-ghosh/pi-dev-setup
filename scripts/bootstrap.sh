@@ -16,12 +16,47 @@ STAMP="$(date +%Y%m%d%H%M%S)"
 SETTINGS_BACKUP="$SETTINGS.backup.$STAMP"
 LOCAL_READ_POLICY="$PI_DIR/extensions/read-policy.ts"
 PACKAGE_CHECKOUT="$PI_DIR/git/github.com/ishaan-ghosh/pi-dev-setup"
+QUARANTINE_ROOT="$PI_DIR/.bootstrap-quarantine"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Required command is unavailable: $1" >&2
     exit 1
   fi
+}
+
+assert_no_symlink_components() {
+  local candidate=$1
+  local label=$2
+  local component
+  local current=/
+  local path_to_check=$candidate
+  local -a components=()
+
+  if [[ "$path_to_check" != /* ]]; then
+    path_to_check="$PWD/$path_to_check"
+  fi
+  IFS='/' read -r -a components <<< "${path_to_check#/}"
+  for component in "${components[@]}"; do
+    case "$component" in
+      ""|.)
+        continue
+        ;;
+      ..)
+        if [[ "$current" != / ]]; then
+          current=${current%/*}
+          [[ -n "$current" ]] || current=/
+        fi
+        ;;
+      *)
+        current="${current%/}/$component"
+        if [[ -L "$current" ]]; then
+          echo "$label contains a symbolic-link component: $current" >&2
+          return 1
+        fi
+        ;;
+    esac
+  done
 }
 
 origin_matches_repo() {
@@ -129,7 +164,11 @@ self_package_source() {
   case "$source" in
     "git:https://github.com/$REPO_SLUG"|"git:https://github.com/$REPO_SLUG.git"|"git:https://github.com/$REPO_SLUG@"*|"git:https://github.com/$REPO_SLUG.git@"*|\
     "git:git@github.com:$REPO_SLUG"|"git:git@github.com:$REPO_SLUG.git"|"git:git@github.com:$REPO_SLUG@"*|"git:git@github.com:$REPO_SLUG.git@"*|\
-    "git:ssh://git@github.com/$REPO_SLUG"|"git:ssh://git@github.com/$REPO_SLUG.git"|"git:ssh://git@github.com/$REPO_SLUG@"*|"git:ssh://git@github.com/$REPO_SLUG.git@"*)
+    "git:ssh://git@github.com/$REPO_SLUG"|"git:ssh://git@github.com/$REPO_SLUG.git"|"git:ssh://git@github.com/$REPO_SLUG@"*|"git:ssh://git@github.com/$REPO_SLUG.git@"*|\
+    "https://github.com/$REPO_SLUG"|"https://github.com/$REPO_SLUG.git"|"https://github.com/$REPO_SLUG@"*|"https://github.com/$REPO_SLUG.git@"*|\
+    "http://github.com/$REPO_SLUG"|"http://github.com/$REPO_SLUG.git"|"http://github.com/$REPO_SLUG@"*|"http://github.com/$REPO_SLUG.git@"*|\
+    "ssh://git@github.com/$REPO_SLUG"|"ssh://git@github.com/$REPO_SLUG.git"|"ssh://git@github.com/$REPO_SLUG@"*|"ssh://git@github.com/$REPO_SLUG.git@"*|\
+    "git://github.com/$REPO_SLUG"|"git://github.com/$REPO_SLUG.git"|"git://github.com/$REPO_SLUG@"*|"git://github.com/$REPO_SLUG.git@"*)
       return 0
       ;;
     *)
@@ -145,7 +184,11 @@ self_package_filters_match_release() {
     const filterKeys = ["extensions", "skills", "prompts", "themes"];
     const sourceOf = (entry) => typeof entry === "string" ? entry : entry?.source;
     const filterContract = (entry) => {
-      const contract = {};
+      const contract = { autoload: true };
+      if (typeof entry !== "string" && Object.hasOwn(entry, "autoload")) {
+        if (typeof entry.autoload !== "boolean") throw new Error("invalid autoload filter");
+        contract.autoload = entry.autoload;
+      }
       for (const key of filterKeys) {
         if (typeof entry === "string" || !Object.hasOwn(entry, key)) {
           contract[key] = null;
@@ -216,7 +259,8 @@ quarantine_new_checkout() {
   if [[ "${CHECKOUT_WAS_ABSENT:-0}" != "1" || ( ! -e "$PACKAGE_CHECKOUT" && ! -L "$PACKAGE_CHECKOUT" ) ]]; then
     return 0
   fi
-  quarantine_root="$PI_DIR/.bootstrap-quarantine"
+  quarantine_root="$QUARANTINE_ROOT"
+  assert_no_symlink_components "$quarantine_root" "Pi bootstrap quarantine path" || return 1
   quarantine_path="$quarantine_root/pi-dev-setup.$STAMP.$$"
   mkdir -p "$quarantine_root"
   if [[ -e "$quarantine_path" || -L "$quarantine_path" ]]; then
@@ -231,6 +275,7 @@ quarantine_new_checkout() {
 }
 
 claim_absent_checkout() {
+  assert_no_symlink_components "$PACKAGE_CHECKOUT" "Pi setup checkout path" || return 1
   if [[ -e "$PACKAGE_CHECKOUT" || -L "$PACKAGE_CHECKOUT" ]]; then
     echo "Pi setup checkout appeared after preflight; refusing to install or quarantine it: $PACKAGE_CHECKOUT" >&2
     return 1
@@ -260,6 +305,10 @@ inspect_local_state() {
   local exact_count=0
   local family_count=0
 
+  assert_no_symlink_components "$SETTINGS" "Pi settings path" || return 1
+  assert_no_symlink_components "$PACKAGE_CHECKOUT" "Pi setup checkout path" || return 1
+  assert_no_symlink_components "$LOCAL_READ_POLICY" "Pi local read-policy path" || return 1
+  assert_no_symlink_components "$QUARANTINE_ROOT" "Pi bootstrap quarantine path" || return 1
   if [[ -e "$PI_DIR" && ! -d "$PI_DIR" ]]; then
     echo "Pi agent path exists but is not a directory: $PI_DIR" >&2
     return 1
@@ -302,7 +351,7 @@ inspect_local_state() {
   fi
   if (( exact_count == 1 )); then
     if ! self_package_filters_match_release; then
-      echo "The pinned Pi setup entry's extensions, skills, prompts, and themes filters do not match the reviewed release settings." >&2
+      echo "The pinned Pi setup entry's autoload and extensions, skills, prompts, and themes filters do not match the reviewed release settings." >&2
       return 1
     fi
     if ! checkout_matches_release; then

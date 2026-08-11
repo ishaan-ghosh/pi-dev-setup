@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -225,6 +225,20 @@ test("bootstrap recognizes supported scp-style self-package locators before writ
 	await runBlocked(harness, /conflicting or unpinned Pi setup source/);
 });
 
+test("bootstrap recognizes supported raw-protocol self-package locators before writes", async (t) => {
+	for (const source of [
+		`https://github.com/ishaan-ghosh/pi-dev-setup@${releaseSha}`,
+		`ssh://git@github.com/ishaan-ghosh/pi-dev-setup@${releaseSha}`,
+	]) {
+		await t.test(source.startsWith("https") ? "https" : "ssh", async () => {
+			const harness = await makeHarness("ok");
+			await mkdir(harness.agent, { recursive: true });
+			await writeFile(path.join(harness.agent, "settings.json"), JSON.stringify({ packages: [source] }, null, 2), "utf8");
+			await runBlocked(harness, /conflicting or unpinned Pi setup source/);
+		});
+	}
+});
+
 test("bootstrap blocks an exact configured source whose checkout is missing without writes", async () => {
 	const harness = await makeHarness("ok");
 	await mkdir(harness.agent, { recursive: true });
@@ -238,6 +252,7 @@ test("bootstrap keeps exact string and source-only object self-package entries",
 	for (const [name, makeEntry] of [
 		["string", (source) => source],
 		["source-only object", (source) => ({ source })],
+		["explicit autoload object", (source) => ({ source, autoload: true })],
 	]) {
 		await t.test(name, async () => {
 			const harness = await makeHarness("ok");
@@ -248,6 +263,37 @@ test("bootstrap keeps exact string and source-only object self-package entries",
 			assert.match(stdout, /already installed at published commit/);
 			assert.deepEqual(await readFile(path.join(harness.agent, "settings.json")), before);
 			await assert.rejects(() => stat(harness.mutationLog), { code: "ENOENT" });
+		});
+	}
+});
+
+test("bootstrap rejects disabled or malformed package autoload without writes", async (t) => {
+	for (const [name, autoload] of [
+		["disabled", false],
+		["malformed", "yes"],
+	]) {
+		await t.test(name, async () => {
+			const harness = await makeHarness("ok");
+			const source = `git:https://github.com/ishaan-ghosh/pi-dev-setup@${releaseSha}`;
+			await makeExactInstalledState(harness, { source, autoload });
+			await runBlocked(harness, /filters do not match the reviewed release settings/);
+		});
+	}
+});
+
+test("bootstrap rejects symlinked mutation-path parents before writes", async (t) => {
+	for (const [name, relativeLink, expectedMessage] of [
+		["checkout", "git", /Pi setup checkout path contains a symbolic-link component/],
+		["quarantine", ".bootstrap-quarantine", /Pi bootstrap quarantine path contains a symbolic-link component/],
+	]) {
+		await t.test(name, async () => {
+			const harness = await makeHarness("ok");
+			const externalRoot = path.join(harness.root, `external-${name}`);
+			await mkdir(harness.agent, { recursive: true });
+			await mkdir(externalRoot, { recursive: true });
+			await symlink(externalRoot, path.join(harness.agent, relativeLink), "dir");
+			await runBlocked(harness, expectedMessage);
+			assert.deepEqual(await readdir(externalRoot), []);
 		});
 	}
 });

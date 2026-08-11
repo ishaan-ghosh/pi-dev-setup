@@ -183,8 +183,9 @@ export async function recordAuditStage(options) {
 		const sessionId = requireIdentity(options.sessionId ?? reviewer.session_id, `${stage} session ID`);
 		const recordedAt = (options.now ?? new Date()).toISOString();
 		const recordedTime = Date.parse(recordedAt);
-		if (stage === "verification" && prerequisiteCompletionTimes.some((time) => recordedTime < time)) {
-			throw new Error("Cannot record verification with a completion timestamp earlier than primary or peer.");
+		if (prerequisiteCompletionTimes.some((time) => recordedTime < time)) {
+			const prerequisiteLabel = stage === "peer" ? "primary" : "primary or peer";
+			throw new Error(`Cannot record ${stage} with a completion timestamp earlier than ${prerequisiteLabel}.`);
 		}
 		const reportSha256 = sha256(reportBuffer);
 		reviewer.role = config.role;

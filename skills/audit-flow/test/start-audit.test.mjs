@@ -1566,6 +1566,63 @@ test("record-stage rejects empty reports, missing identity, and premature final-
 	assert.equal(metadata.reviewers.primary.attestation.kind, "orchestrator-attested");
 });
 
+test("record-stage rejects backdated fixed stages without poisoning retries", async () => {
+	const projectRoot = await createGitProject("audit-flow-fixed-stage-time-");
+	const result = await startAudit({
+		projectRoot,
+		profile: "diff",
+		auditId: "fixed-stage-time",
+		now: new Date("2026-05-07T00:00:00.000Z"),
+		env: {},
+	});
+	const { recordAuditStage } = await import("../scripts/record-stage.mjs");
+	await writeText(result.primaryInitialPath, "# Primary\n");
+	await recordAuditStage({
+		auditYmlPath: result.auditYmlPath,
+		stage: "primary",
+		...reviewerIdentity("fixed-time-primary"),
+		now: new Date("2026-05-07T01:00:00.000Z"),
+	});
+
+	await writeText(result.peerReviewPath, "# Peer\n");
+	let before = await readFile(result.auditYmlPath);
+	await assert.rejects(
+		() => recordAuditStage({
+			auditYmlPath: result.auditYmlPath,
+			stage: "peer",
+			...reviewerIdentity("fixed-time-peer"),
+			now: new Date("2026-05-07T00:59:59.999Z"),
+		}),
+		/completion timestamp earlier than primary/,
+	);
+	assert.deepEqual(await readFile(result.auditYmlPath), before);
+	await recordAuditStage({
+		auditYmlPath: result.auditYmlPath,
+		stage: "peer",
+		...reviewerIdentity("fixed-time-peer"),
+		now: new Date("2026-05-07T02:00:00.000Z"),
+	});
+
+	await writeText(result.finalDiffReviewPath, "# Final\n");
+	before = await readFile(result.auditYmlPath);
+	await assert.rejects(
+		() => recordAuditStage({
+			auditYmlPath: result.auditYmlPath,
+			stage: "final-diff",
+			...reviewerIdentity("fixed-time-final"),
+			now: new Date("2026-05-07T01:59:59.999Z"),
+		}),
+		/completion timestamp earlier than primary or peer/,
+	);
+	assert.deepEqual(await readFile(result.auditYmlPath), before);
+	await recordAuditStage({
+		auditYmlPath: result.auditYmlPath,
+		stage: "final-diff",
+		...reviewerIdentity("fixed-time-final"),
+		now: new Date("2026-05-07T03:00:00.000Z"),
+	});
+});
+
 test("finalization exhaustively validates statuses and the deferred gate", async () => {
 	const { result } = await createCompletedAudit("audit-flow-status-");
 	const { finalizeAudit } = await import("../scripts/finalize-audit.mjs");
