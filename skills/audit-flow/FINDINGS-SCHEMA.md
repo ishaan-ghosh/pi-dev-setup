@@ -8,7 +8,11 @@ Findings should have stable IDs and structured status fields from the beginning.
   "title": "Run status is not updated when one benchmark job fails",
   "severity": "high",
   "confidence": "confirmed",
-  "source": ["primary-reviewer", "peer-reviewer"],
+  "source": ["primary", "peer"],
+  "verification": {
+    "required": 2,
+    "artifacts": ["primary-initial.md", "peer-review.md"]
+  },
   "status": "accepted",
   "target": {
     "repo": "backend",
@@ -31,8 +35,10 @@ Findings should have stable IDs and structured status fields from the beginning.
 - `title`: Short human-readable finding title.
 - `severity`: `critical | high | medium | low`.
 - `confidence`: `confirmed | likely | speculative | question`.
-- `source`: Provenance labels such as `primary-reviewer`, `peer-reviewer`, `finding-verifier`, or `human-drilldown`. Findings promoted into synthesis/human review must have at least two independent reviewer-agent sources that directly verified the target evidence. One-source findings remain `candidate`, `unverified`, `question`, or `rejected`.
-- `status`: `candidate | accepted | rejected | deferred | needs_more_info | fixed | partially_fixed | still_open | verified | commented`.
+- `source`: At least two concrete keys from `audit.yml.reviewers`, such as `primary`, `peer`, or a supplemental key such as `verifier_peer_only`. Generic role names are invalid. Each cited key must identify a completed reviewer with nonempty tool/model/session metadata and a structural orchestrator attestation.
+- `verification.required`: Integer of at least 2. The number of distinct cited reviewer keys must meet it.
+- `verification.artifacts`: An array containing only concrete nonempty strings. It must contain the exact `reviewers.<key>.artifact` value for every cited source.
+- `status`: `candidate | unverified | accepted | rejected | deferred | needs_more_info | fixed | partially_fixed | still_open | verified | commented`.
 - `impact`: User/product/runtime impact.
 - `evidence`: Concrete evidence, preferably with file/line references or command results.
 - `recommended_action`: `fix | comment | defer | ignore | investigate`.
@@ -46,12 +52,12 @@ Findings should have stable IDs and structured status fields from the beginning.
 - `github_comment`: Proposed GitHub review comment information after human acceptance.
 - `decision_reason`: Human reason for accepting, rejecting, or deferring.
 - `validation`: Commands/results relevant to this finding.
-- `verification`: Optional per-source verification notes, artifact paths, or reviewer roles used to satisfy the two-agent finding verification gate.
 
 ## Status lifecycle
 
 ```txt
 candidate → accepted → fixed → verified
+candidate → unverified → rejected/deferred/needs_more_info
 candidate → accepted → partially_fixed → fixed/still_open
 candidate → accepted → still_open
 candidate → accepted → commented
@@ -60,4 +66,8 @@ candidate → deferred
 candidate → needs_more_info → accepted/rejected/deferred
 ```
 
-Reviewer sessions should generally create `candidate` findings. The parent audit cockpit first applies the two-agent verification gate, then updates status after human drill-down.
+Reviewer sessions should generally create `candidate` findings. Before human drill-down or synthesis, the parent audit cockpit compares provenance and evidence for every candidate. Primary-plus-peer confirmation may satisfy the policy gate when both exact artifacts are cited. A primary-only, peer-only, missed, or disputed finding requires a fresh focused reviewer, a bound `verification-<name>-prompt.md`, and a `verification-<name>.md` report. One-source allegations belong outside terminal `findings.json` as open questions; changing their status does not bypass the terminal two-source gate.
+
+Strict finalization rejects a missing or unknown status and recognizes exactly the 11 statuses listed above. Every terminal finding, including `rejected` and `deferred`, must meet its `verification.required` count, cite at least two concrete reviewer keys, bind each exact report in `verification.artifacts`, and cite distinct report bytes. A non-blocked final status rejects unresolved findings. `passed` rejects deferred findings, while `passed_with_deferred` requires at least one deferred finding. This structural gate is separate from the mandatory full-target `final_diff` stage.
+
+These checks validate locally recorded structure and caller/orchestrator attestations. They are not cryptographic proof of report authorship, reviewer independence, blindness, or internal reasoning. Rejecting equal report hashes is copy-error defense, not proof that different hashes came from independent cognition.

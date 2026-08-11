@@ -7,8 +7,8 @@
  * - Allow a full-file read only when explicitly requested in the user prompt.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
 const DEFAULT_READ_LIMIT = 200;
 const MAX_READ_LIMIT = 400;
